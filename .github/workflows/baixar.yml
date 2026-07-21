@@ -1,10 +1,9 @@
 name: Baixar Consulta Vistoria de Obras GPM
 
 on:
-  # Cron desativado (2026-07-21, a pedido) — so run manual por enquanto.
-  # Pra reativar, descomente e ajuste o horario:
-  # schedule:
-  #   - cron: "0 9 * * *"    # diario 09:00 UTC = 06:00 BRT
+  schedule:
+    # 2x/dia: 08:00 e 20:00 BRT (BRT = UTC-3 -> 11:00 e 23:00 UTC).
+    - cron: "0 11,23 * * *"
   workflow_dispatch: {}      # botao manual na aba Actions
 
 permissions:
