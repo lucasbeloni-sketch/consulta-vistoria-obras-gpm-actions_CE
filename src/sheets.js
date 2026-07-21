@@ -4,7 +4,7 @@
 // de dados. Se a aba tiver menos colunas que o necessario, cresce a grade.
 
 const { google } = require("googleapis");
-const { getAuthClient, withRetry } = require("../lib/google");
+const { getAuthClient, withRetry, stampBR } = require("../lib/google");
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
@@ -71,6 +71,21 @@ async function gravarDados(matriz, cfg) {
     }),
     { label: "update" }
   );
+
+  // Timestamp de "ultima atualizacao" na celula configurada (default B1, ao
+  // lado do rotulo em A1). Em BRT (stampBR), formato dd/MM/aaaa HH:mm:ss.
+  const cel = cfg.sheet.timestampCell || "B1";
+  const stamp = stampBR(cfg.timezone);
+  await withRetry(
+    () => sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${aba}!${cel}`,
+      valueInputOption: vio,
+      requestBody: { values: [[stamp]] },
+    }),
+    { label: "timestamp" }
+  );
+  console.log(`[sheets] timestamp ${stamp} gravado em ${aba}!${cel}.`);
   return res.data;
 }
 

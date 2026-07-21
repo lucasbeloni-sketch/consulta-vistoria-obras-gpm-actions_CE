@@ -25,7 +25,8 @@
     "linhaInicioDados": 3,
     "colunasOrigem": [0, 6, 7, 10],
     "valueInputOption": "USER_ENTERED",
-    "minLinhas": 1
+    "minLinhas": 1,
+    "timestampCell": "B1"
   },
 
   "_comentario_selectors": "exportarCsv CALIBRADO no DOM real (2026-07-21): botao 'CSV' = button.buttons-csv (Excel tambem e btn-success verde, por isso usamos a classe buttons-csv especifica). pesquisar/contratoDropdown pela heuristica (getByRole Pesquisar / #contrato Choices.js, iguais a Consulta Servicos) — a validar no DRY_RUN.",
