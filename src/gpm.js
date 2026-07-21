@@ -303,6 +303,20 @@ async function exportarCsv(page, frame, cfg) {
   const ctx = page.context();
   const texto = cfg.exportButtonText || "CSV";
 
+  // DIAGNOSTICO (DEBUG_DUMP=1): salva o HTML da tela ANTES de exportar, pra ver
+  // o que o headless realmente renderizou (ex.: coluna Data/Hora vazia?).
+  if (process.env.DEBUG_DUMP) {
+    await dumpFrame(frame, "pre-export");
+    const amostra = await frame.evaluate(() => {
+      const t = document.querySelector("#tab_resultados");
+      if (!t) return "sem #tab_resultados";
+      const ths = [...t.querySelectorAll("thead th")].map((th) => (th.textContent || "").trim());
+      const r0 = [...(t.querySelector("tbody tr") ? t.querySelector("tbody tr").children : [])].map((td) => (td.textContent || "").trim());
+      return { ths, r0 };
+    }).catch((e) => `evaluate falhou: ${e.message}`);
+    console.log("[gpm][debug] tabela:", JSON.stringify(amostra));
+  }
+
   // Localiza o botao ANTES de armar os listeners (se nao existir, erro sobe
   // limpo sem deixar um waitForEvent("download") orfao rejeitando depois).
   let botao;
