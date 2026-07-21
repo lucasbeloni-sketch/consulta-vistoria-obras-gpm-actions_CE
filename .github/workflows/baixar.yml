@@ -41,15 +41,14 @@ jobs:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           GPM_USER: ${{ secrets.GPM_USER }}
           GPM_PASS: ${{ secrets.GPM_PASS }}
-          DEBUG_DUMP: "1"   # TEMP: diagnostico da coluna Data/Hora no headless
 
       - name: Parte 2 — compilar colunas na aba BD_Vistoria_GPM
         run: npm run compilar
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
 
-      - name: Upload artefatos de debug
-        if: always()   # TEMP: sempre, pra diagnostico da coluna Data/Hora
+      - name: Upload artefatos de debug (em caso de falha)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: debug

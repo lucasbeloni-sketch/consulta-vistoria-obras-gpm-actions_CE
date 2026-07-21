@@ -30,19 +30,32 @@ Pasta-destino: `1TRlNBxcSMWiQ8Jkhez7-cIPDaVQhN-l0` (Consulta_Vistoria, em
 - **Nome**: `PREFIXO.csv` (sem data, sobrescreve). (Consulta Servicos: `PREFIXO - mm.aaaa.csv`; Exportacao Obras: `mm.aaaa.csv`.)
 - **CSV**: `;`, UTF-8 **BOM**, quebras **CRLF** (as irmas vem em LF).
 
+## Duas partes
+
+- **Parte #1 — baixar** (`npm start`): login → por contrato baixa o CSV e sobe `PREFIXO.csv` na pasta `Consulta_Vistoria` do Drive.
+- **Parte #2 — compilar** (`npm run compilar`): le TODOS os CSVs dessa pasta, seleciona as colunas **N. Vistoria (A)**, **Ordem de Trabalho (G)**, **Ordem de Trabalho (OT) Principal (H)** e **Data/Hora (K)** e escreve na aba **BD_Vistoria_GPM** da planilha `CCM - CE - Bases (Manual)`, **a partir da linha 3** (cabecalho na linha 2 e mantido por voce; o robo NAO toca as linhas 1-2 — so limpa/reescreve da linha 3 pra baixo, colunas A:D).
+
+No workflow as duas rodam em sequencia (parte #1 depois parte #2).
+
 ## Estrutura
 
 ```
-config.json              consultaUrl, contratos, pasta-destino, minLinhasDados, seletores
-src/baixar.js            orquestrador (login -> por contrato: baixar + retry + guard + enviar)
+config.json              consultaUrl, contratos, pasta-destino, minLinhasDados, seletores, sheet (parte #2)
+src/baixar.js            parte #1: orquestrador (login -> por contrato: baixar + retry + guard + enviar)
 src/gpm.js               Playwright: login, navegacao, contrato (Choices.js), Pesquisar, export "CSV", extracao
-src/drive.js             upload/update na pasta do Drive (service account) + auto-dedup
-src/util.js              funcao pura (contagem de linhas) — testada. Sem funcoes de data (Vistoria nao usa)
+src/drive.js             upload/update na pasta do Drive + auto-dedup; listarCsvsPasta (parte #2)
+src/compilar.js          parte #2: le os CSVs da pasta, seleciona colunas e escreve na aba
+src/sheets.js            parte #2: escrita na planilha (Sheets API); limpa/reescreve so da linha 3 pra baixo
+src/util.js              funcoes puras: contagem de linhas + parseCsv (";" com aspas) — testadas
 lib/google.js            auth da service account + withRetry
-test/                    testes unitarios (node --test): extrairCsv + contagem de linhas (LF e CRLF)
-tools/                   helpers: inspect (calibrar seletores), check-drive (auditar duplicatas)
-.github/workflows/baixar.yml   testes + cron diario + botao manual + notificacao de falha
+test/                    testes unitarios (node --test): extrairCsv, contagem de linhas, parseCsv
+tools/                   helpers: inspect/calibrar (seletores), check-drive (auditar duplicatas)
+.github/workflows/baixar.yml   testes + parte #1 + parte #2 + botao manual + notificacao de falha
 ```
+
+### Timezone (importante)
+
+O GPM formata **Data/Hora** no fuso do browser. No runner (UTC) as datas sairiam +3h; por isso o contexto usa `timezoneId: "America/Sao_Paulo"` e `locale: "pt-BR"` — sem isso, alem de +3h, as colunas de data vinham VAZIAS no export headless. Nao remova.
 
 Guards: `minLinhasDados` impede sobrescrever com CSV so-cabecalho (glitch do GPM);
 busca vazia ("Nenhum registro encontrado") tambem NAO sobrescreve. `drive.js` faz
