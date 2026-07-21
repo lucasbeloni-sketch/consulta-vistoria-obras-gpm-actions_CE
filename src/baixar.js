@@ -28,9 +28,15 @@ async function comRetry(fn, label, tentativas = 2) {
   console.log(`[run] headless=${headless} | dryRun=${dryRun} | contratos=${cfg.contratos.length}`);
 
   const browser = await chromium.launch({ headless });
-  // Viewport largo: evita o DataTables/Responsive esconder colunas da direita
-  // (Data/Hora, Data Despacho, Coordenadas) que sumiam no export headless.
-  const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1920, height: 1200 } });
+  // timezoneId America/Sao_Paulo: o GPM formata Data/Hora no fuso do browser; no
+  // runner (UTC) as datas sairiam +3h. Fixamos BRT pra bater com o esperado.
+  // Viewport largo: evita o DataTables/Responsive colapsar colunas.
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 1920, height: 1200 },
+    timezoneId: "America/Sao_Paulo",
+    locale: "pt-BR",
+  });
   const page = await context.newPage();
   page.setDefaultTimeout(20000);
 

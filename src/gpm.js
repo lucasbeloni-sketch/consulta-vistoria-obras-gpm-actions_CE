@@ -300,11 +300,28 @@ async function buscaVazia(frame) {
 // (page + eventual popup) ANTES do clique. CUIDADO: nao clicar em "Excel"
 // (buttons-excel) nem "Copiar" (buttons-copy). Salva em ./debug.
 async function exportarCsv(page, frame, cfg) {
-  const ctx = page.context();
-  const texto = cfg.exportButtonText || "CSV";
+  // NAO usamos o botao "CSV" do DataTables: no headless ele exporta as colunas
+  // de data (Data/Hora, Data Despacho) VAZIAS — a "orthogonal export data" do
+  // DataTables difere do que o DOM exibe (confirmado via dump no CI: o DOM tinha
+  // "20/07/2026 ..." mas o CSV do botao vinha vazio). Em vez disso, MONTAMOS o
+  // CSV lendo a tabela do DOM, que tem todas as colunas corretas nos dois
+  // ambientes. As datas saem no fuso do browser (por isso fixamos timezoneId
+  // America/Sao_Paulo no contexto). Excluimos a coluna "Acoes" (botoes), como o
+  // export do GPM tambem faz -> 14 colunas: N. Vistoria ... Municipio.
 
-  // DIAGNOSTICO (DEBUG_DUMP=1): salva o HTML da tela ANTES de exportar, pra ver
-  // o que o headless realmente renderizou (ex.: coluna Data/Hora vazia?).
+  // Tira a paginacao (mostra todos os registros) pra nao perder linhas em buscas
+  // grandes — a tabela DOM so tem a pagina atual.
+  await frame.evaluate(() => {
+    try {
+      const w = window;
+      if (w.jQuery && w.jQuery.fn && w.jQuery.fn.dataTable && w.jQuery("#tab_resultados").length) {
+        w.jQuery("#tab_resultados").DataTable().page.len(-1).draw(false);
+      }
+    } catch (_) {}
+  });
+  await sleep(1200);
+  await paginaDe(frame).waitForLoadState("networkidle").catch(() => {});
+
   if (process.env.DEBUG_DUMP) {
     await dumpFrame(frame, "pre-export");
     const amostra = await frame.evaluate(() => {
@@ -317,51 +334,36 @@ async function exportarCsv(page, frame, cfg) {
     console.log("[gpm][debug] tabela:", JSON.stringify(amostra));
   }
 
-  // Localiza o botao ANTES de armar os listeners (se nao existir, erro sobe
-  // limpo sem deixar um waitForEvent("download") orfao rejeitando depois).
-  let botao;
-  try {
-    botao = await primeiroVisivel(frame, [
-      cfg.selectors.exportarCsv,
-      ".dt-buttons a.buttons-csv", ".dt-buttons button.buttons-csv",
-      "a.buttons-csv", "button.buttons-csv",
-      (f) => f.getByRole("button", { name: new RegExp(`^\\s*${texto}\\s*$`, "i") }),
-      (f) => f.getByRole("link", { name: new RegExp(`^\\s*${texto}\\s*$`, "i") }),
-      `.dt-button:has-text('${texto}')`,
-    ], { timeout: 20000 });
-  } catch (e) {
-    await dumpFrame(frame, "export-sem-botao");
-    throw new Error(`Botao "${texto}" (verde, DataTables) nao encontrado na tela de resultados: ${e.message}`);
-  }
-
-  // Arma os listeners ANTES de clicar (o clique pode, em tese, abrir popup).
-  let onPage;
-  const viaPopup = new Promise((resolve) => {
-    onPage = (p) => p.waitForEvent("download", { timeout: 30000 }).then(resolve).catch(() => {});
-    ctx.on("page", onPage);
+  const dados = await frame.evaluate(() => {
+    const t = document.querySelector("#tab_resultados");
+    if (!t) return null;
+    const ths = [...t.querySelectorAll("thead th")];
+    const keep = ths.map((th, i) => ({ i, txt: (th.textContent || "").trim() }))
+      .filter((c) => c.txt && !/^a[cç][oõ]es$/i.test(c.txt)); // fora a coluna "Acoes"
+    const idxs = keep.map((c) => c.i);
+    const header = keep.map((c) => c.txt);
+    const trs = [...t.querySelectorAll("tbody tr")].filter((tr) => !tr.classList.contains("child"));
+    const rows = trs
+      .map((tr) => { const tds = [...tr.children]; return idxs.map((i) => (tds[i] ? (tds[i].textContent || "").trim() : "")); })
+      .filter((r) => !(r.length <= 1) && !r.every((v) => v === "")); // fora placeholder/vazias
+    return { header, rows };
   });
-  const viaPage = page.waitForEvent("download", { timeout: 32000 });
 
-  let download;
-  try {
-    await botao.scrollIntoViewIfNeeded().catch(() => {});
-    await botao.click({ force: true }).catch(() => {});
-    download = await Promise.race([viaPage, viaPopup]);
-  } catch (e) {
-    await dumpFrame(frame, "export-sem-download");
-    await dump(page, "export-sem-download-shell");
-    throw new Error(`Cliquei no "${texto}" mas nenhum download veio em 30s. ${e.message}`);
-  } finally {
-    ctx.off("page", onPage);
-    viaPage.catch(() => {}); // se o race resolveu pelo popup, evita rejeicao orfa
+  if (!dados || !dados.header.length) {
+    await dumpFrame(frame, "export-sem-tabela");
+    throw new Error("Nao consegui ler a tabela de resultados (#tab_resultados) pra montar o CSV.");
   }
-  if (!download) throw new Error("Export sem objeto de download.");
 
-  const sug = download.suggestedFilename();
+  // Monta CSV igual ao do GPM: campos entre aspas, separador ';', BOM, CRLF.
+  const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const linhasCsv = [dados.header.map(q).join(";")];
+  for (const r of dados.rows) linhasCsv.push(r.map(q).join(";"));
+  const buffer = Buffer.from("﻿" + linhasCsv.join("\r\n") + "\r\n", "utf8");
+
   fs.mkdirSync(DEBUG_DIR, { recursive: true });
-  const destino = path.join(DEBUG_DIR, `ultimo-download-${sug || "arquivo"}`);
-  await download.saveAs(destino);
-  console.log(`[gpm] download recebido: "${sug}" -> ${destino}`);
+  const destino = path.join(DEBUG_DIR, "consulta_vistoria_de_obras.csv");
+  fs.writeFileSync(destino, buffer);
+  console.log(`[gpm] CSV montado do DOM: ${dados.rows.length} linha(s) x ${dados.header.length} coluna(s) -> ${destino}`);
   return destino;
 }
 
