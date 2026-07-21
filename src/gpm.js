@@ -261,11 +261,19 @@ async function pesquisar(frame, cfg) {
   console.log("[gpm] Pesquisa concluida.");
 }
 
-// Detecta busca sem resultados (GPM injeta "Nenhum registro encontrado").
-// Sem resultados nao ha tabela nem botao CSV — exportar seria impossivel.
+// Detecta busca sem resultados. NAO da pra usar o texto "Nenhum registro
+// encontrado" do HTML: essa frase e o rotulo i18n do DataTables (emptyTable) e
+// vem no HTML mesmo quando HA dados. Checamos a tabela real (#tab_resultados,
+// confirmado no aria-controls dos botoes): vazia = linha .dataTables_empty ou
+// tbody sem linhas de dados. Sem a tabela, NAO afirmamos vazio (deixa o export
+// tentar) pra nao bloquear por engano.
 async function buscaVazia(frame) {
-  const html = await frame.content().catch(() => "");
-  return /Nenhum registro encontrado/i.test(html);
+  return frame.evaluate(() => {
+    const t = document.querySelector("#tab_resultados");
+    if (!t) return false;
+    if (t.querySelector("td.dataTables_empty, tr.dataTables_empty")) return true;
+    return t.querySelectorAll("tbody tr").length === 0;
+  }).catch(() => false);
 }
 
 // Dispara o export clicando no botao verde "CSV" (DataTables HTML5 export:

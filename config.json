@@ -1,8 +1,8 @@
 {
   "baseUrl": "https://sirtecce.gpm.srv.br/",
 
-  "_comentario_url": "Tela: menu Obras Eletricas > Vistoria > Consulta Vistoria de Obras (tela /ci/ SPA, dentro do iframe #frameTelasGPM). A URL abaixo e a MELHOR APROXIMACAO (nao confirmada no DOM real) — CALIBRE com 'HEADED=1 npm run inspect' e ajuste. Se o goto direto vier sem shell, o codigo opera na propria pagina.",
-  "consultaUrl": "https://sirtecce.gpm.srv.br/ci/Vistoria/ConsultaVistoriaObras",
+  "_comentario_url": "CALIBRADO no DOM real (2026-07-21): tela SPA dentro do iframe #frameTelasGPM. Rota do FORM = /ci/Servico/VistoriaObras (menu Obras Eletricas > Vistoria > Consulta Vistoria de Obras). Apos Pesquisar re-renderiza em /ci/Servico/VistoriaObras/pesquisar (onde aparece a toolbar CSV).",
+  "consultaUrl": "https://sirtecce.gpm.srv.br/ci/Servico/VistoriaObras",
 
   "_comentario_destino": "Pasta Consulta_Vistoria no Shared Drive PCP > Time CCM - CE > Sistemas > Bases. A service account precisa de acesso EDITOR nela.",
   "destFolderId": "1TRlNBxcSMWiQ8Jkhez7-cIPDaVQhN-l0",
@@ -18,13 +18,13 @@
     { "dropdown": "JA10188071/2026_SOC_SOT", "prefixo": "SOC.SOT" }
   ],
 
-  "_comentario_selectors": "Override sobre a heuristica do codigo. Login confirmado nas irmas (#idLogin/#idSenha/'Entrar'). Os de dentro da tela (contrato/pesquisar/CSV) precisam de uma rodada de inspect na tela Consulta Vistoria de Obras — preencha 'exportarCsv' com o seletor do botao verde CSV se a heuristica errar.",
+  "_comentario_selectors": "exportarCsv CALIBRADO no DOM real (2026-07-21): botao 'CSV' = button.buttons-csv (Excel tambem e btn-success verde, por isso usamos a classe buttons-csv especifica). pesquisar/contratoDropdown pela heuristica (getByRole Pesquisar / #contrato Choices.js, iguais a Consulta Servicos) — a validar no DRY_RUN.",
   "selectors": {
     "loginUser": "#idLogin",
     "loginPass": "#idSenha",
     "loginSubmit": "button:has-text('Entrar')",
     "contratoDropdown": "#contrato",
     "pesquisar": null,
-    "exportarCsv": null
+    "exportarCsv": "button.buttons-csv"
   }
 }
