@@ -35,12 +35,17 @@ jobs:
       - name: Install Chromium (Playwright)
         run: npx playwright install --with-deps chromium
 
-      - name: Baixar relatorio e enviar ao Drive
+      - name: Parte 1 — baixar relatorio e enviar ao Drive
         run: npm start
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           GPM_USER: ${{ secrets.GPM_USER }}
           GPM_PASS: ${{ secrets.GPM_PASS }}
+
+      - name: Parte 2 — compilar colunas na aba BD_Vistoria_GPM
+        run: npm run compilar
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
 
       - name: Upload artefatos de debug (em caso de falha)
         if: failure()

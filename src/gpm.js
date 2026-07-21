@@ -257,7 +257,25 @@ async function pesquisar(frame, cfg) {
     await dumpFrame(frame, "pesquisa-sem-resultados");
     throw new Error(`Pesquisa: nem toolbar de export nem contagem apareceram em 45s apos Pesquisar. (${e.message})`);
   }
-  await sleep(800);
+
+  // Deixa a tabela ASSENTAR antes de exportar. Colunas como Data/Hora / Data
+  // Despacho / Coordenadas sao preenchidas por renderizacao deferida — no
+  // headless o export disparava antes e elas saiam VAZIAS no CSV. Esperamos:
+  // (1) rede ociosa; (2) a coluna Data/Hora ter valor em alguma linha (o sinal
+  // direto de que os dados deferidos chegaram); (3) um respiro final.
+  const pg = paginaDe(frame);
+  await pg.waitForLoadState("networkidle").catch(() => {});
+  await frame.waitForFunction(() => {
+    const t = document.querySelector("#tab_resultados");
+    if (!t) return false;
+    const ths = [...t.querySelectorAll("thead th")];
+    const idx = ths.findIndex((th) => /Data\s*\/?\s*Hora/i.test(th.textContent || ""));
+    if (idx < 0) return true; // sem a coluna: nao trava
+    const rows = [...t.querySelectorAll("tbody tr")];
+    if (!rows.length) return true;
+    return rows.some((r) => r.children[idx] && (r.children[idx].textContent || "").trim() !== "");
+  }, { timeout: 20000 }).catch(() => console.warn("[gpm] aviso: coluna Data/Hora nao populou no tempo; seguindo mesmo assim."));
+  await sleep(1500);
   console.log("[gpm] Pesquisa concluida.");
 }
 

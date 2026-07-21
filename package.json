@@ -6,8 +6,10 @@
   "description": "Baixa o relatorio Consulta Vistoria de Obras do GPM CE (headless) e envia o CSV ao Google Drive.",
   "scripts": {
     "start": "node src/baixar.js",
+    "compilar": "node src/compilar.js",
     "test": "node --test",
     "inspect": "node tools/inspect.js",
+    "calibrar": "node tools/calibrar.js",
     "check": "node tools/check-drive.js"
   },
   "dependencies": {

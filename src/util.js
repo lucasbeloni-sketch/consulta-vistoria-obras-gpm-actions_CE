@@ -10,4 +10,39 @@ function contarLinhasDados(buffer) {
   return Math.max(0, linhas.length - 1);
 }
 
-module.exports = { contarLinhasDados };
+// Parser de CSV do GPM (delimitador ";", aspas duplas, escape "" para aspas
+// literal, quebras LF ou CRLF, campos podendo conter ";" e quebras de linha
+// dentro de aspas). Tira BOM. Retorna array de linhas (array de strings).
+// Necessario porque split(";") quebraria em campos com ";" citado (ex.: enderecos).
+function parseCsv(buffer, delim = ";") {
+  let s = Buffer.isBuffer(buffer) ? buffer.toString("utf8") : String(buffer);
+  if (s.charCodeAt(0) === 0xfeff) s = s.slice(1); // tira BOM
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQ = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQ) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; } // "" -> "
+        else inQ = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQ = true;
+    } else if (c === delim) {
+      row.push(field); field = "";
+    } else if (c === "\r") {
+      // ignora; o \n fecha a linha
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else {
+      field += c;
+    }
+  }
+  // ultimo campo/linha (arquivo sem quebra final)
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+module.exports = { contarLinhasDados, parseCsv };

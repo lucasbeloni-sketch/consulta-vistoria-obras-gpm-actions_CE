@@ -91,4 +91,45 @@ async function uploadCsv(buffer, nomeFinal, cfg) {
   return { acao: "created", id: created.data.id, duplicatas: [] };
 }
 
-module.exports = { uploadCsv };
+// Lista e baixa TODOS os .csv da pasta-destino (parte #2 / compilador). Retorna
+// [{ name, buffer }] ordenado por nome. Um por contrato (PREFIXO.csv).
+async function listarCsvsPasta(cfg) {
+  const drive = await getDrive();
+  const folderId = cfg.destFolderId;
+
+  const folder = await withRetry(
+    () => drive.files.get({ fileId: folderId, fields: "id,name,driveId", supportsAllDrives: true }),
+    { label: "get folder" }
+  );
+  const driveId = folder.data.driveId;
+
+  const list = await withRetry(
+    () => drive.files.list({
+      q: `'${folderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`,
+      fields: "files(id,name)",
+      pageSize: 500,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      corpora: "drive",
+      driveId,
+      orderBy: "name",
+    }),
+    { label: "list csvs" }
+  );
+  const files = (list.data.files || []).filter((f) => /\.csv$/i.test(f.name));
+
+  const out = [];
+  for (const f of files) {
+    const res = await withRetry(
+      () => drive.files.get(
+        { fileId: f.id, alt: "media", supportsAllDrives: true },
+        { responseType: "arraybuffer" }
+      ),
+      { label: `download ${f.name}` }
+    );
+    out.push({ name: f.name, buffer: Buffer.from(res.data) });
+  }
+  return out;
+}
+
+module.exports = { uploadCsv, listarCsvsPasta };

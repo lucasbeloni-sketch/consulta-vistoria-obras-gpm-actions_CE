@@ -18,6 +18,16 @@
     { "dropdown": "JA10188071/2026_SOC_SOT", "prefixo": "SOC.SOT" }
   ],
 
+  "_comentario_sheet": "Parte #2 (compilador, src/compilar.js): le TODOS os .csv da pasta destino (destFolderId acima) e escreve as colunas selecionadas na aba BD_Vistoria_GPM. colunasOrigem = indices 0-based no CSV: 0=N. Vistoria (col A), 6=Ordem de Trabalho (col G), 7=Ordem de Trabalho (OT) Principal (col H), 10=Data/Hora (col K). linhaInicioDados=3: o cabecalho fica na linha 2 (mantido pelo usuario; o robo NAO toca linhas 1-2, so limpa e reescreve da linha 3 pra baixo). USER_ENTERED = numeros viram numero e datas dd/mm/aaaa viram data (planilha pt-BR), igual colar.",
+  "sheet": {
+    "spreadsheetId": "1YtcYEFgrxVW59xG-H57gV25hWpZtROwnabZgVNrPnz0",
+    "aba": "BD_Vistoria_GPM",
+    "linhaInicioDados": 3,
+    "colunasOrigem": [0, 6, 7, 10],
+    "valueInputOption": "USER_ENTERED",
+    "minLinhas": 1
+  },
+
   "_comentario_selectors": "exportarCsv CALIBRADO no DOM real (2026-07-21): botao 'CSV' = button.buttons-csv (Excel tambem e btn-success verde, por isso usamos a classe buttons-csv especifica). pesquisar/contratoDropdown pela heuristica (getByRole Pesquisar / #contrato Choices.js, iguais a Consulta Servicos) — a validar no DRY_RUN.",
   "selectors": {
     "loginUser": "#idLogin",
